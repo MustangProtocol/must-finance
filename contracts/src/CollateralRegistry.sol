@@ -13,7 +13,9 @@ import "./Interfaces/ICollateralRegistry.sol";
 
 contract CollateralRegistry is ICollateralRegistry {
     // See: https://github.com/ethereum/solidity/issues/12587
-    uint256 public immutable totalCollaterals; // 10
+    uint256 public totalCollaterals; // 10
+
+    uint256 public totalRemovedCollaterals; // 10
 
     address governor;
 
@@ -267,6 +269,22 @@ contract CollateralRegistry is ICollateralRegistry {
         }
     }
 
+    function getRemovedToken(uint256 _index) external view returns (IERC20Metadata) {
+        if (_index >= totalRemovedCollaterals) {
+            revert("Invalid index");
+        }else{
+            return removedCollateralTokensList[_index];
+        }
+    }
+
+    function getRemovedTroveManager(uint256 _index) public view returns (ITroveManager) {
+        if (_index >= totalRemovedCollaterals) {
+            revert("Invalid index");
+        }else{
+            return removedTroveManagersList[_index];
+        }
+    }
+
     // require functions
 
     function _requireValidMaxFeePercentage(uint256 _maxFeePercentage) internal pure {
@@ -329,6 +347,9 @@ contract CollateralRegistry is ICollateralRegistry {
         uint256 removedIndex = removedCollateralTokensList.length;
         removedCollateralTokensList[removedIndex] = collateralToken;
         removedTroveManagersList[removedIndex] = troveManager;
+
+        totalCollaterals--;
+        totalRemovedCollaterals++;
 
         //emit event
         emit CollateralRemoved(_index, address(collateralToken), address(troveManager));
