@@ -5,6 +5,7 @@ pragma solidity 0.8.24;
 
 import "./TokenPriceFeedBase.sol";
 import "../Dependencies/Constants.sol";
+import {console2} from "forge-std/console2.sol";
 
 contract FBTCPriceFeed is TokenPriceFeedBase {
     Oracle public btcUsdOracle;
@@ -25,13 +26,14 @@ contract FBTCPriceFeed is TokenPriceFeedBase {
         btcUsdOracle.aggregator = AggregatorV3Interface(_btcUsdOracleAddress);
         btcUsdOracle.stalenessThreshold = _btcUsdStalenessThreshold;
         btcUsdOracle.decimals = btcUsdOracle.aggregator.decimals();
-
+        console2.log("btcUsdOracle.decimals: %s", btcUsdOracle.decimals);
         // Store FBTC-USD oracle
         fbtcUsdOracle.aggregator = AggregatorV3Interface(_fbtcUsdOracleAddress);
         fbtcUsdOracle.stalenessThreshold = _fbtcUsdStalenessThreshold;
         fbtcUsdOracle.decimals = fbtcUsdOracle.aggregator.decimals();
-
+        console2.log("fbtcUsdOracle.decimals: %s", fbtcUsdOracle.decimals);
         _fetchPricePrimary(false);
+        console2.log("priceSource: %s", uint8(priceSource));
 
         // Check the oracle didn't already fail
         assert(priceSource == PriceSource.primary);
@@ -60,6 +62,9 @@ contract FBTCPriceFeed is TokenPriceFeedBase {
         assert(priceSource == PriceSource.primary);
         (uint256 fbtcUsdPrice, bool fbtcUsdOracleDown) = _getOracleAnswer(fbtcUsdOracle);
         (uint256 btcUsdPrice, bool btcOracleDown) = _getOracleAnswer(btcUsdOracle);
+
+        console2.log("fbtcUsdOracleDown: %s", fbtcUsdOracleDown);
+        console2.log("btcOracleDown: %s", btcOracleDown);
 
         if (fbtcUsdOracleDown && btcOracleDown) {
             // both oracles are down or invalid answer, use lastGoodPrice

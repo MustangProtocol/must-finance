@@ -83,6 +83,9 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
     // used for gas compensation and as collateral of the first branch
     // tapping disallowed
     IWETH WETH;
+
+    IERC20Metadata WRAPPED_FBTC;
+    IERC20Metadata WRAPPED_SAGA;
     // IERC20Metadata USDC;
     // address WSTETH_ADDRESS = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
     address RETH_ADDRESS = 0x679121f168488185eca6Aaa3871687FF6d38Edb6; // TODO: Change to CORRECT ADDRESS
@@ -255,6 +258,8 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         if (block.chainid == CHAIN_ID) {
             // mainnet
             WETH = IWETH(WETH_ADDRESS);
+            WRAPPED_FBTC = new WrappedToken{salt: SALT}(IERC20Metadata(FBTC_ADDRESS));
+            WRAPPED_SAGA = new WrappedToken{salt: SALT}(IERC20Metadata(SAGA_ADDRESS));
             // USDC = IERC20Metadata(USDC_ADDRESS);
         } else {
             // sepolia, local
@@ -294,35 +299,35 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
 
         // tBTC
         troveManagerParamsArray[2] = TroveManagerParams({
-            CCR: CCR_SETH,
-            MCR: MCR_SETH,
-            SCR: SCR_SETH,
+            CCR: CCR_BTC,
+            MCR: MCR_BTC,
+            SCR: SCR_BTC,
             BCR: BCR_ALL,
             debtLimit: TBTC_DEBT_LIMIT,
-            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_SETH,
-            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_SETH
+            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_BTC,
+            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_BTC
         });
 
         // FBTC
         troveManagerParamsArray[3] = TroveManagerParams({
-            CCR: CCR_SETH,
-            MCR: MCR_SETH,
-            SCR: SCR_SETH,
+            CCR: CCR_BTC,
+            MCR: MCR_BTC,
+            SCR: SCR_BTC,
             BCR: BCR_ALL,
             debtLimit: FBTC_DEBT_LIMIT,
-            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_SETH,
-            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_SETH
+            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_BTC,
+            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_BTC
         });
         
         // SAGA
         troveManagerParamsArray[4] = TroveManagerParams({
-            CCR: CCR_SETH,
-            MCR: MCR_SETH,
-            SCR: SCR_SETH,
+            CCR: CCR_SAGA,
+            MCR: MCR_SAGA,
+            SCR: SCR_SAGA,
             BCR: BCR_ALL,
             debtLimit: SAGA_DEBT_LIMIT,
-            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_SETH,
-            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_SETH
+            LIQUIDATION_PENALTY_SP: LIQUIDATION_PENALTY_SP_SAGA,
+            LIQUIDATION_PENALTY_REDISTRIBUTION: LIQUIDATION_PENALTY_REDISTRIBUTION_SAGA
         });
 
         string[] memory collNames = new string[](NUM_BRANCHES - 1);
@@ -490,10 +495,6 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
     function getBytecode(bytes memory _creationCode, address _addressesRegistry, uint256 _branchId) public pure returns (bytes memory) {
         return abi.encodePacked(_creationCode, abi.encode(_addressesRegistry, _branchId));
     }
-
-    function getBytecode(bytes memory _creationCode, address _addressesRegistry, address _governor) public pure returns (bytes memory) {
-        return abi.encodePacked(_creationCode, abi.encode(_addressesRegistry, _governor));
-    }
     
     function _deployAndConnectContracts(
         TroveManagerParams[] memory troveManagerParamsArray,
@@ -534,11 +535,13 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
 
             // FBTC
             // vars.collaterals[3] = IERC20Metadata(FBTC_ADDRESS);
-            vars.collaterals[3] = new WrappedToken(IERC20Metadata(FBTC_ADDRESS));
+            vars.collaterals[3] = WRAPPED_FBTC;
+            console2.log("vars.collaterals[3]: %s", address(vars.collaterals[3]));
 
             // SAGA
             // vars.collaterals[4] = IERC20Metadata(SAGA_ADDRESS);
-            vars.collaterals[4] = new WrappedToken(IERC20Metadata(SAGA_ADDRESS));
+            vars.collaterals[4] = WRAPPED_SAGA;
+            console2.log("vars.collaterals[4]: %s", address(vars.collaterals[4]));
         } else {
             // Sepolia
             // Use WETH as collateral for the first branch
@@ -562,6 +565,8 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
             vars.addressesRegistries[vars.i] = addressesRegistry;
             vars.troveManagers[vars.i] = ITroveManager(troveManagerAddress);
         }
+
+        console2.log("HMMMMMMMM???");
 
         r.collateralRegistry = new CollateralRegistry(r.boldToken, vars.collaterals, vars.troveManagers, address(0)); // TODO: Replace null address with governor address
         r.hintHelpers = new HintHelpers(r.collateralRegistry);
@@ -637,6 +642,8 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         LiquityContractAddresses memory addresses;
         contracts.collToken = _collToken;
 
+        console2.log("contracts.collToken: %s", address(contracts.collToken));
+
         // Deploy all contracts, using testers for TM and PriceFeed
         contracts.addressesRegistry = _addressesRegistry;
 
@@ -645,6 +652,8 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         addresses.metadataNFT = vm.computeCreate2Address(
             SALT, keccak256(getBytecode(type(MetadataNFT).creationCode, address(initializedFixedAssetReader)))
         );
+        console2.log("contracts.metadataNFT: %s", address(contracts.metadataNFT));
+        console2.log("addresses.metadataNFT: %s", addresses.metadataNFT);
         assert(address(contracts.metadataNFT) == addresses.metadataNFT);
 
         contracts.interestRouter = IInterestRouter(_governance);
@@ -653,7 +662,7 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         );
         addresses.troveManager = _troveManagerAddress;
         addresses.troveNFT = vm.computeCreate2Address(
-            SALT, keccak256(getBytecode(type(TroveNFT).creationCode, address(contracts.addressesRegistry), address(GOVERNANCE_ADDRESS)))
+            SALT, keccak256(getBytecode(type(TroveNFT).creationCode, address(contracts.addressesRegistry)))
         );
         addresses.stabilityPool = vm.computeCreate2Address(
             SALT, keccak256(getBytecode(type(StabilityPool).creationCode, address(contracts.addressesRegistry)))
@@ -674,7 +683,11 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
             SALT, keccak256(getBytecode(type(SortedTroves).creationCode, address(contracts.addressesRegistry)))
         );
 
+        console2.log("pricefeed deployment starting");
+
         contracts.priceFeed = _deployPriceFeed(address(_collToken), addresses.borrowerOperations);
+
+        console2.log("pricefeed deployment done");
 
         IAddressesRegistry.AddressVars memory addressVars = IAddressesRegistry.AddressVars({
             collToken: _collToken,
@@ -700,7 +713,7 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
 
         contracts.borrowerOperations = new BorrowerOperations{salt: SALT}(contracts.addressesRegistry);
         contracts.troveManager = new TroveManager{salt: SALT}(contracts.addressesRegistry, _branchId);
-        contracts.troveNFT = new TroveNFT{salt: SALT}(contracts.addressesRegistry, GOVERNANCE_ADDRESS);
+        contracts.troveNFT = new TroveNFT{salt: SALT}(contracts.addressesRegistry);
         contracts.stabilityPool = new StabilityPool{salt: SALT}(contracts.addressesRegistry);
         contracts.activePool = new ActivePool{salt: SALT}(contracts.addressesRegistry);
         contracts.defaultPool = new DefaultPool{salt: SALT}(contracts.addressesRegistry);
@@ -708,14 +721,32 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         contracts.collSurplusPool = new CollSurplusPool{salt: SALT}(contracts.addressesRegistry);
         contracts.sortedTroves = new SortedTroves{salt: SALT}(contracts.addressesRegistry);
 
+        console2.log("contracts.borrowerOperations: %s", address(contracts.borrowerOperations));
+        console2.log("addresses.borrowerOperations: %s", addresses.borrowerOperations);
         assert(address(contracts.borrowerOperations) == addresses.borrowerOperations);
+        console2.log("contracts.troveManager: %s", address(contracts.troveManager));
+        console2.log("addresses.troveManager: %s", addresses.troveManager);
         assert(address(contracts.troveManager) == addresses.troveManager);
+        console2.log("contracts.troveNFT: %s", address(contracts.troveNFT));
+        console2.log("addresses.troveNFT: %s", addresses.troveNFT);
         assert(address(contracts.troveNFT) == addresses.troveNFT);
+        console2.log("contracts.stabilityPool: %s", address(contracts.stabilityPool));
+        console2.log("addresses.stabilityPool: %s", addresses.stabilityPool);
         assert(address(contracts.stabilityPool) == addresses.stabilityPool);
+        console2.log("contracts.activePool: %s", address(contracts.activePool));
+        console2.log("addresses.activePool: %s", addresses.activePool);
         assert(address(contracts.activePool) == addresses.activePool);
+        console2.log("contracts.defaultPool: %s", address(contracts.defaultPool));
+        console2.log("addresses.defaultPool: %s", addresses.defaultPool);
         assert(address(contracts.defaultPool) == addresses.defaultPool);
+        console2.log("contracts.gasPool: %s", address(contracts.gasPool));
+        console2.log("addresses.gasPool: %s", addresses.gasPool);
         assert(address(contracts.gasPool) == addresses.gasPool);
+        console2.log("contracts.collSurplusPool: %s", address(contracts.collSurplusPool));
+        console2.log("addresses.collSurplusPool: %s", addresses.collSurplusPool);
         assert(address(contracts.collSurplusPool) == addresses.collSurplusPool);
+        console2.log("contracts.sortedTroves: %s", address(contracts.sortedTroves));
+        console2.log("addresses.sortedTroves: %s", addresses.sortedTroves);
         assert(address(contracts.sortedTroves) == addresses.sortedTroves);
 
         // Connect contracts
@@ -727,7 +758,8 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
         );
 
         // Update gas compensation max reward
-        _updateGasCompensationMaxReward(contracts.troveManager);
+        // ERROR: Fails because deployer is not governor of collateral registry
+        // _updateGasCompensationMaxReward(contracts.troveManager);
 
         // deploy zappers
         (contracts.gasCompZapper, contracts.wethZapper, contracts.leverageZapper) =
@@ -742,9 +774,15 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
             // Saga
             // ETH
             if (_collTokenAddress == address(WETH)) {
-                return new WETHPriceFeed(ETH_ORACLE_ADDRESS, ETH_USD_STALENESS_THRESHOLD, _borroweOperationsAddress);
+                console2.log("deploying weth price feed");
+                return new WETHPriceFeed(
+                    ETH_ORACLE_ADDRESS, 
+                    ETH_USD_STALENESS_THRESHOLD, 
+                    _borroweOperationsAddress
+                );
             } else if (_collTokenAddress == RETH_ADDRESS) {
                 // rETH
+                console2.log("deploying reth price feed");
                 return new RETHPriceFeed(
                     deployer,
                     RETH_ORACLE_ADDRESS,
@@ -752,6 +790,7 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
                 );
             } else if (_collTokenAddress == TBTC_ADDRESS) {
                 // tBTC
+                console2.log("deploying tbtc price feed");
                 return new TBTCPriceFeed(
                     deployer,
                     TBTC_ORACLE_ADDRESS,
@@ -759,8 +798,9 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
                     BTC_ORACLE_ADDRESS,
                     BTC_USD_STALENESS_THRESHOLD
                 );
-            } else if (_collTokenAddress == FBTC_ADDRESS) {
+            } else if (_collTokenAddress == address(WRAPPED_FBTC)) {
                 // FBTC
+                console2.log("deploying fbtc price feed");
                 return new FBTCPriceFeed(
                     deployer,
                     FBTC_ORACLE_ADDRESS,
@@ -768,14 +808,21 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
                     BTC_ORACLE_ADDRESS,
                     BTC_USD_STALENESS_THRESHOLD
                 );
-            } else if (_collTokenAddress == SAGA_ADDRESS) {
+            } else if (_collTokenAddress == address(WRAPPED_SAGA)) {
                 // SAGA
+                console2.log("deploying saga price feed");
                 return new SAGAPriceFeed(
                     deployer,
                     SAGA_ORACLE_ADDRESS,
                     SAGA_USD_STALENESS_THRESHOLD
                 );
             } else {
+                console2.log("_deployPriceFeed - Invalid collateral token: %s", _collTokenAddress);
+                console2.log("wrapped fbtc: %s", address(WRAPPED_FBTC));
+                console2.log("wrapped saga: %s", address(WRAPPED_SAGA));
+                console2.log("reth: %s", RETH_ADDRESS);
+                console2.log("tbtc: %s", TBTC_ADDRESS);
+                console2.log("weth: %s", address(WETH));
                 revert("Invalid collateral token");
             }
         }
@@ -972,11 +1019,17 @@ contract DeployLiquity2Script is DeployGovernance, UniPriceConverter, StdCheats,
             _troveManager.updateGasCompensationMaxReward(COLL_GAS_COMPENSATION_CAP_RETH);
         } else if (address(_collToken) == TBTC_ADDRESS) {
             _troveManager.updateGasCompensationMaxReward(COLL_GAS_COMPENSATION_CAP_TBTC);
-        } else if (address(_collToken) == FBTC_ADDRESS) {
+        } else if (address(_collToken) == address(WRAPPED_FBTC)) {
             _troveManager.updateGasCompensationMaxReward(COLL_GAS_COMPENSATION_CAP_FBTC);
-        } else if (address(_collToken) == SAGA_ADDRESS) {
+        } else if (address(_collToken) == address(WRAPPED_SAGA)) {
             _troveManager.updateGasCompensationMaxReward(COLL_GAS_COMPENSATION_CAP_SAGA);
         } else {
+            console2.log("_updateGasCompensationMaxReward - Invalid collateral token: %s", address(_collToken));
+            console2.log("wrapped fbtc: %s", address(WRAPPED_FBTC));
+            console2.log("wrapped saga: %s", address(WRAPPED_SAGA));
+            console2.log("reth: %s", RETH_ADDRESS);
+            console2.log("tbtc: %s", TBTC_ADDRESS);
+            console2.log("weth: %s", address(WETH));
             revert("Invalid collateral token");
         }
     }
