@@ -57,6 +57,18 @@ contract WrappedTokenZapper is BaseZapper {
             "WTZ: Cannot choose interest if joining a batch"
         );
 
+        ///////////////////////////////////////////
+        // For testing purposes
+        // DELETE before production
+        uint256 balance = _underlyingToken.balanceOf(msg.sender);
+        require(balance > 0, "WTZ: msg.sender has no underlying token balance");
+        require(balance >= _params.collAmount, "WTZ: msg.sender has insufficient underlying token balance");
+
+        uint256 allowance = _underlyingToken.allowance(msg.sender, address(this));
+        require(allowance > 0, "WTZ: msg.sender has no allowance of underlying token to Zapper");
+        require(allowance >= _params.collAmount, "WTZ: msg.sender has insufficient allowance of underlying token to Zapper");
+        ///////////////////////////////////////////
+
         // Transfer underlying token from user to this contract        
         _underlyingToken.safeTransferFrom(msg.sender, address(this), _params.collAmount);
 
@@ -65,6 +77,17 @@ contract WrappedTokenZapper is BaseZapper {
         wrappedToken.depositFor(address(this), _params.collAmount);
         
         uint256 wrappedCollAmount = convertUnderlyingToWrapped(_params.collAmount);
+        
+        ///////////////////////////////////////////
+        // For testing purposes
+        // DELETE before production
+        balance = wrappedToken.balanceOf(address(this));
+        require(balance >= wrappedCollAmount, "WTZ: Zapper has insufficient wrapped token balance");
+
+        allowance = wrappedToken.allowance(address(this), address(borrowerOperations));
+        require(allowance > 0, "WTZ: Zapper has no allowance of wrapped token to BorrowerOperations");
+        require(allowance >= wrappedCollAmount, "WTZ: Zapper has insufficient allowance of wrapped token to BorrowerOperations");
+        ///////////////////////////////////////////
 
         uint256 troveId;
         // Include sender in index
