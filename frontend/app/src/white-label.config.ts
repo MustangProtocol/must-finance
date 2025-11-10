@@ -280,7 +280,7 @@ export const WHITE_LABEL_CONFIG = {
             metadataNFT: "0x4e9970e6419e83b02d3cf9b068f880bacbc2b629",
             priceFeed: "0xb28020f09b5ea9132ee7c7872b4f628648d5e609",
             gasPool: "0xac80c422110fc07f0844f0e4645120858d7c713c",
-            leverageZapper: "0xf4ae7336ab0fa33c3fc9b289612072c8928ee512",
+            leverageZapper: "0xb0F7B59a09071Bace19dbd69C93190Bd1c7065F0",
           },
           1: { // Placeholder for Mainnet
             collToken: "0x0000000000000000000000000000000000000000",

@@ -209,12 +209,17 @@ function getWriteContract(config: WagmiConfig, account: Address) {
     //   Math.ceil(gasEstimate + Math.max(gasMinHeadroom, gasEstimate * GAS_RELATIVE_HEADROOM)),
     // );
 
-    const { request } = await simulateContract(config, {
-      account: account.toLowerCase() as Address,
-      ...params
-    } as any);
+    try {
+      const { request } = await simulateContract(config, {
+        account: account.toLowerCase() as Address,
+        ...params
+      } as any);
+      return writeContract(config, request);
+    } catch (error) {
+      console.error({...error});
+      throw error;
+    }
 
-    return writeContract(config, request);
   };
 }
 

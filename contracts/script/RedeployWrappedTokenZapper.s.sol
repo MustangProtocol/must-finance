@@ -9,7 +9,7 @@ import {IFlashLoanProvider} from "src/Zappers/Interfaces/IFlashLoanProvider.sol"
 import {IExchange} from "src/Zappers/Interfaces/IExchange.sol";
 import {IWrappedToken} from "src/Interfaces/IWrappedToken.sol";
 
-contract DeployWrappedTokenZapper is Script {
+contract RedeployWrappedTokenZapper is Script {
     function run() external {
         vm.startBroadcast();
         
