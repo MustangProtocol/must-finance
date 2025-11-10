@@ -98,23 +98,6 @@ export default function RawBorrowPage() {
     return results;
   }
 
-  async function sendZeroAmount() {
-    try {
-      const simulation = await simulateContract(config, {
-        address: wrappedSagaTokenAddress,
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [
-          branch.contracts.BorrowerOperations.address as `0x${string}`,
-          0n,
-        ],
-      });
-      console.log("Simulation:", simulation);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
   async function handleBorrow() {
     try {
       console.log("Owner:", owner);
@@ -295,8 +278,8 @@ export default function RawBorrowPage() {
           value={annualInterestRateInput}
           onChange={(value) => setAnnualInterestRateInput(value)}
         />
+        <br />
         <Button label="Borrow" onClick={handleBorrow} mode="primary" />
-        <Button label="Send Zero Amount" onClick={sendZeroAmount} mode="primary" />
       </div>
     </div>
   );

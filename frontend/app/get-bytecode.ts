@@ -1,7 +1,7 @@
 
 import { createPublicClient, http } from "viem";
-import { getStorageAt, getBytecode } from "viem/actions";
-import { mainnet, saga } from "wagmi/chains";
+import { getBytecode } from "viem/actions";
+import { saga } from "wagmi/chains";
 
 const wethbranch = {
   collToken: "0xeb41D53F14Cb9a67907f2b8b5DBc223944158cCb",
