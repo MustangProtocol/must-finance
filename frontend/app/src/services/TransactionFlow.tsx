@@ -216,7 +216,7 @@ function getWriteContract(config: WagmiConfig, account: Address) {
       } as any);
       return writeContract(config, request);
     } catch (error) {
-      console.error({...error});
+      console.error(error);
       throw error;
     }
 

@@ -4,11 +4,11 @@ import { MAX_UPFRONT_FEE } from "@/src/constants";
 import { getBranch } from "@/src/liquity-utils";
 import { Button, InputField } from "@liquity2/uikit";
 import { useMemo, useState } from "react";
-import { erc20Abi, formatUnits, isAddressEqual, parseAbi, parseUnits, zeroAddress } from "viem";
+import { erc20Abi, formatUnits, isAddressEqual, maxUint256, parseAbi, parseUnits } from "viem";
 import { useAccount, useConfig, useWriteContract } from "wagmi";
 import { readContract, readContracts, simulateContract, waitForTransactionReceipt } from "wagmi/actions";
 
-const wrappedSagaTokenAddress = "0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3";
+const wrappedSagaTokenAddress = "0xaa5e2ea42f0a9c3b43f2b7d26eaa2ba17ae41dac";
 
 export default function RawBorrowPage() {
   const [collAmountInput, setCollAmountInput] = useState<string>("");
@@ -89,7 +89,7 @@ export default function RawBorrowPage() {
       boldToken: results[5],
       borrowerOperationsAddress: results[6],
       isCorrectBO: isAddressEqual(results[3], branch.contracts.BorrowerOperations.address),
-      isCorrectCollToken: isAddressEqual(results[4], branch.contracts.CollToken.address),
+      isCorrectCollToken: isAddressEqual(results[4], branch.contracts.CollToken.address) || isAddressEqual(results[4], wrappedSagaTokenAddress),
       isCorrectBorrowerOperationsAddress: isAddressEqual(results[6], branch.contracts.BorrowerOperations.address),
       isActive: results[7],
     });
@@ -123,57 +123,57 @@ export default function RawBorrowPage() {
       console.log("Max Upfront Fee:", MAX_UPFRONT_FEE);
 
       const wsagaBalance = await readContract(config, {
-        address: "0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3",
+        address: wrappedSagaTokenAddress,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: [owner as `0x${string}`],
       });
       console.log("wSAGA Balance:", formatUnits(wsagaBalance, 18));
       console.log("Sufficient balance:", wsagaBalance >= collAmount.wrapped);
-      // // Approve SAGA to be deposited for wSAGA
-      // console.log("Approving SAGA to be deposited for wSAGA")
-      // let approveHash = await writeContractAsync({
-      //   ...branch.contracts.CollToken,
-      //   functionName: "approve",
-      //   args: ["0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3", collAmount.raw],
-      // });
-      // let approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
-      // console.log("Approve Receipt:", approveReceipt);
+      // Approve SAGA to be deposited for wSAGA
+      console.log("Approving SAGA to be deposited for wSAGA")
+      let approveHash = await writeContractAsync({
+        ...branch.contracts.CollToken,
+        functionName: "approve",
+        args: [wrappedSagaTokenAddress, collAmount.raw],
+      });
+      let approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
+      console.log("Approve Receipt:", approveReceipt);
       
-      // // Approve wSAGA to be deposited as collateral by BorrowerOperations
-      // console.log("Approving wSAGA to be deposited as collateral by BorrowerOperations")
-      // approveHash = await writeContractAsync({
-      //   address: "0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3",
-      //   abi: erc20Abi,
-      //   functionName: "approve",
-      //   args: [branch.contracts.BorrowerOperations.address, collAmount.wrapped],
-      // });
-      // approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
-      // console.log("Approve Receipt:", approveReceipt);
+      // Approve wSAGA to be deposited as collateral by BorrowerOperations
+      console.log("Approving wSAGA to be deposited as collateral by BorrowerOperations")
+      approveHash = await writeContractAsync({
+        address: wrappedSagaTokenAddress,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [branch.contracts.BorrowerOperations.address, collAmount.wrapped],
+      });
+      approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
+      console.log("Approve Receipt:", approveReceipt);
       
-      // // Simulate depositFor
-      // console.log("Wrapping SAGA to wSAGA")
-      // const simulation = await simulateContract(config, {
-      //   address: "0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3",
-      //   abi: parseAbi([
-      //     "function depositFor(address account, uint256 amount) public returns (bool)",
-      //   ]),
-      //   functionName: "depositFor",
-      //   args: [owner as `0x${string}`, collAmount.raw],
-      // });
-      // console.log("Simulation:", simulation);
+      // Simulate depositFor
+      console.log("Wrapping SAGA to wSAGA")
+      const simulation = await simulateContract(config, {
+        address: wrappedSagaTokenAddress,
+        abi: parseAbi([
+          "function depositFor(address account, uint256 amount) public returns (bool)",
+        ]),
+        functionName: "depositFor",
+        args: [owner as `0x${string}`, collAmount.raw],
+      });
+      console.log("Simulation:", simulation);
 
-      // // Deposit SAGA for wSAGA
-      // const wrapHash = await writeContractAsync({
-      //   address: "0x62beeef5f6c0a84c508e6b8690be9ea04ecffcb3",
-      //   abi: parseAbi([
-      //     "function depositFor(address account, uint256 amount) public returns (bool)",
-      //   ]),
-      //   functionName: "depositFor",
-      //   args: [owner as `0x${string}`, collAmount.raw],
-      // });
-      // const wrapReceipt = await waitForTransactionReceipt(config, { hash: wrapHash });
-      // console.log(wrapReceipt);
+      // Deposit SAGA for wSAGA
+      const wrapHash = await writeContractAsync({
+        address: wrappedSagaTokenAddress,
+        abi: parseAbi([
+          "function depositFor(address account, uint256 amount) public returns (bool)",
+        ]),
+        functionName: "depositFor",
+        args: [owner as `0x${string}`, collAmount.raw],
+      });
+      const wrapReceipt = await waitForTransactionReceipt(config, { hash: wrapHash });
+      console.log(wrapReceipt);
 
       // openTrove in BorrowerOperations
       console.log("Opening trove with owner:", owner);
@@ -190,7 +190,7 @@ export default function RawBorrowPage() {
           0n,
           0n,
           annualInterestRate,
-          MAX_UPFRONT_FEE,
+          maxUint256,
           owner as `0x${string}`,
           owner as `0x${string}`,
           owner as `0x${string}`,
@@ -205,13 +205,13 @@ export default function RawBorrowPage() {
         functionName: "openTrove",
         args: [
           owner as `0x${string}`,
-          1n,
+          0n,
           collAmount.wrapped,
           boldAmount,
           0n,
           0n,
           annualInterestRate,
-          MAX_UPFRONT_FEE,
+          maxUint256,
           owner as `0x${string}`,
           owner as `0x${string}`,
           owner as `0x${string}`,
