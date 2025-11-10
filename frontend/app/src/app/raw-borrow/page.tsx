@@ -1,6 +1,7 @@
 "use client";
 
 import { MAX_UPFRONT_FEE } from "@/src/constants";
+import { getProtocolContract } from "@/src/contracts";
 import { getBranch } from "@/src/liquity-utils";
 import { Button, InputField } from "@liquity2/uikit";
 import { useMemo, useState } from "react";
@@ -20,6 +21,7 @@ export default function RawBorrowPage() {
   const config = useConfig();
 
   const branch = getBranch("SAGA")
+  const hintHelper = getProtocolContract("HintHelpers")
 
   const collAmount = useMemo(() => {
     if (!collAmountInput) return { raw: 0n, wrapped: 0n };
@@ -130,50 +132,101 @@ export default function RawBorrowPage() {
       });
       console.log("wSAGA Balance:", formatUnits(wsagaBalance, 18));
       console.log("Sufficient balance:", wsagaBalance >= collAmount.wrapped);
-      // Approve SAGA to be deposited for wSAGA
-      console.log("Approving SAGA to be deposited for wSAGA")
-      let approveHash = await writeContractAsync({
-        ...branch.contracts.CollToken,
-        functionName: "approve",
-        args: [wrappedSagaTokenAddress, collAmount.raw],
-      });
-      let approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
-      console.log("Approve Receipt:", approveReceipt);
-      
-      // Approve wSAGA to be deposited as collateral by BorrowerOperations
-      console.log("Approving wSAGA to be deposited as collateral by BorrowerOperations")
-      approveHash = await writeContractAsync({
+      if (wsagaBalance < collAmount.wrapped) {
+        // Approve SAGA to be deposited for wSAGA
+        console.log("Approving SAGA to be deposited for wSAGA")
+        const approveHash = await writeContractAsync({
+          ...branch.contracts.CollToken,
+          functionName: "approve",
+          args: [wrappedSagaTokenAddress, collAmount.raw],
+        });
+        const approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
+        console.log("Approve Receipt:", approveReceipt);
+        
+        // Simulate depositFor
+        console.log("Wrapping SAGA to wSAGA")
+        const simulation = await simulateContract(config, {
+          address: wrappedSagaTokenAddress,
+          abi: parseAbi([
+            "function depositFor(address account, uint256 amount) public returns (bool)",
+          ]),
+          functionName: "depositFor",
+          args: [owner as `0x${string}`, collAmount.raw],
+        });
+        console.log("Simulation:", simulation);
+  
+        // Deposit SAGA for wSAGA
+        const wrapHash = await writeContractAsync({
+          address: wrappedSagaTokenAddress,
+          abi: parseAbi([
+            "function depositFor(address account, uint256 amount) public returns (bool)",
+          ]),
+          functionName: "depositFor",
+          args: [owner as `0x${string}`, collAmount.raw],
+        });
+        const wrapReceipt = await waitForTransactionReceipt(config, { hash: wrapHash });
+        console.log(wrapReceipt);
+      }
+
+      const allowance = await readContract(config, {
         address: wrappedSagaTokenAddress,
         abi: erc20Abi,
-        functionName: "approve",
-        args: [branch.contracts.BorrowerOperations.address, collAmount.wrapped],
+        functionName: "allowance",
+        args: [owner as `0x${string}`, branch.contracts.BorrowerOperations.address],
       });
-      approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
-      console.log("Approve Receipt:", approveReceipt);
+      console.log("Allowance:", allowance);
+      console.log("Allowance >= Coll Amount:", allowance >= collAmount.wrapped);
+      if (allowance < collAmount.wrapped) {
+        // Approve wSAGA to be deposited as collateral by BorrowerOperations
+        console.log("Approving wSAGA to be deposited as collateral by BorrowerOperations")
+        const approveHash = await writeContractAsync({
+          address: wrappedSagaTokenAddress,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [branch.contracts.BorrowerOperations.address, collAmount.wrapped],
+        });
+        const approveReceipt = await waitForTransactionReceipt(config, { hash: approveHash });
+        console.log("Approve Receipt:", approveReceipt);
+      }
       
-      // Simulate depositFor
-      console.log("Wrapping SAGA to wSAGA")
-      const simulation = await simulateContract(config, {
-        address: wrappedSagaTokenAddress,
-        abi: parseAbi([
-          "function depositFor(address account, uint256 amount) public returns (bool)",
-        ]),
-        functionName: "depositFor",
-        args: [owner as `0x${string}`, collAmount.raw],
-      });
-      console.log("Simulation:", simulation);
 
-      // Deposit SAGA for wSAGA
-      const wrapHash = await writeContractAsync({
-        address: wrappedSagaTokenAddress,
-        abi: parseAbi([
-          "function depositFor(address account, uint256 amount) public returns (bool)",
-        ]),
-        functionName: "depositFor",
-        args: [owner as `0x${string}`, collAmount.raw],
-      });
-      const wrapReceipt = await waitForTransactionReceipt(config, { hash: wrapHash });
-      console.log(wrapReceipt);
+      const [ccr, mcr, price, upfrontFee] = await readContracts(config, {
+        allowFailure: false,
+        contracts: [
+          {
+            ...branch.contracts.BorrowerOperations,
+            functionName: "CCR",
+          },
+          {
+            ...branch.contracts.BorrowerOperations,
+            functionName: "MCR",
+          },
+          {
+            ...branch.contracts.PriceFeed,
+            functionName: "fetchPrice",
+          },
+          {
+            ...hintHelper,
+            functionName: "predictOpenTroveUpfrontFee",
+            args: [
+              BigInt(branch.id),
+              boldAmount,
+              annualInterestRate,
+            ],
+          }
+        ]
+      })
+
+      console.log("CCR:", ccr);
+      console.log("MCR:", mcr);
+      console.log("Price:", price);
+      console.log("Upfront Fee:", upfrontFee);
+
+      const icr = collAmount.wrapped * price[0] / (boldAmount + upfrontFee)
+
+      console.log("ICR:", icr);
+      console.log("ICR > MCR:", icr > mcr);
+      console.log("ICR > CCR:", icr > ccr);
 
       // openTrove in BorrowerOperations
       console.log("Opening trove with owner:", owner);
