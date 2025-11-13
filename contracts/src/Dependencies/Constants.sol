@@ -24,7 +24,7 @@ uint256 constant CCR_TBTC = 160 * _1pct;
 uint256 constant CCR_SAGA = 170 * _1pct;
 uint256 constant CCR_STATOM = 160 * _1pct;
 uint256 constant CCR_KING = 160 * _1pct;
-uint256 constant CCR_YUSD = 160 * _1pct;
+uint256 constant CCR_YUSD = 125 * _1pct;
 
 uint256 constant MCR_WETH = 110 * _1pct;
 uint256 constant MCR_YETH = 120 * _1pct;
