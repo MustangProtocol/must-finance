@@ -235,9 +235,7 @@ export function BottomBar() {
               </Link>
               <span>•</span>
               <Link
-                href="https://app.must.finance/redeem"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/redeem"
                 className={css({
                   color: "rgba(255, 255, 255, 0.7)",
                   _hover: { 
