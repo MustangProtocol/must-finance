@@ -79,7 +79,7 @@ export function BottomBar() {
             >
               <Image src={SagaIcon} alt="SAGA" width={16} height={16} />
               <span className={css({ hideBelow: "medium" })}>SAGA</span>
-              <Amount prefix="$" fallback="…" value={sagaPrice.data} format={3} />
+              <Amount prefix="$" fallback="…" value={sagaPrice?.data} format={4} />
             </div>
             <Link
               href="https://discord.com/invite/UCRsTy82Ub"
