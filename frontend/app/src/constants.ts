@@ -80,7 +80,7 @@ export const MAX_DEBT_LIMITS: Record<CollateralSymbol, dn.Dnum> = {
   WETH: dn.from(100_000_000n, 18),
   TBTC: dn.from(100_000_000n, 18),
   YETH: dn.from(5_000_000n, 18),
-  YUSD: dn.from(5_000_000n, 18),
+  YUSD: dn.from(10_000_000n, 18),
   SAGA: dn.from(1_000_000n, 18),
   STATOM: dn.from(1_000_000n, 18),
   KING: dn.from(500_000n, 18),
