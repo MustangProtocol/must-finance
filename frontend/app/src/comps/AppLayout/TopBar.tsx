@@ -12,6 +12,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AccountButton } from "./AccountButton";
 import { MenuDrawerButton } from "./MenuDrawer";
+import { PointsBadge } from "./PointsBadge";
 
 export function TopBar() {
   const headerConfig = useWhiteLabelHeader();
@@ -205,6 +206,7 @@ export function TopBar() {
             >
               <MenuDrawerButton menuItems={menuItems} />
             </div>
+            <PointsBadge />
             <AccountButton />
           </div>
         </div>

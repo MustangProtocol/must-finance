@@ -54,6 +54,7 @@ export const SP_YIELD_SPLIT = 75n * 10n ** 16n; // 75%
 
 export const DATA_REFRESH_INTERVAL = 30_000;
 export const PRICE_REFRESH_INTERVAL = 60_000;
+export const POINTS_API_URL = "https://mustang-points-production.up.railway.app";
 export const DATA_STALE_TIME = 5_000;
 
 export const LEVERAGE_MAX_SLIPPAGE = 0.05; // 5%
