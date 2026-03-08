@@ -28,6 +28,10 @@ shrink_run_limit = 0 # takes too damn long to shrink, don't waste Github minutes
 mainnet = "${MAINNET_RPC_URL}"
 tenderly-mainnet = "${TENDERLY_RPC_URL}"
 
+[profile.saga]
+# Saga EVM: gas is always 0. Use with: FOUNDRY_PROFILE=saga forge script ...
+# Pass these flags when broadcasting: --with-gas-price 0 --priority-gas-price 0 --gas-estimate-multiplier 10
+
 [profile.e2e]
 # Allows us to .gitignore broadcast logs of E2E deployments
 broadcast = 'broadcast-e2e'

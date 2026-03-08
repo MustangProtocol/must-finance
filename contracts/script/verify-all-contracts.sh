@@ -92,6 +92,9 @@ get_contract_path() {
         "WrappedTokenZapper")
             echo "src/Zappers/WrappedTokenZapper.sol:WrappedTokenZapper"
             ;;
+        "SaviorToken")
+            echo "src/SaviorToken.sol:SaviorToken"
+            ;;
         *)
             echo ""
             ;;

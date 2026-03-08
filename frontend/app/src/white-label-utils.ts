@@ -49,14 +49,14 @@ export function getDeploymentInfo(chainId: number) {
     HINT_HELPERS: mainTokenDeployment.hintHelpers as Address,
     MULTI_TROVE_GETTER: mainTokenDeployment.multiTroveGetter as Address,
     EXCHANGE_HELPERS: mainTokenDeployment.exchangeHelpers as Address,
-    BRANCHES: WHITE_LABEL_CONFIG.tokens.collaterals.map((collateral, index) => {
+    BRANCHES: WHITE_LABEL_CONFIG.tokens.collaterals.map((collateral) => {
       if (!(chainId in collateral.deployments)) {
         throw new Error(`No deployment for ${collateral.symbol} on chain ${chainId}`);
       }
       
       const deployment: CollateralDeployment = collateral.deployments[typedChainId];
       return {
-        branchId: index as BranchId,
+        branchId: collateral.branchId as BranchId,
         symbol: collateral.symbol,
         name: collateral.name,
         decimals: collateral.decimals,
