@@ -23,7 +23,7 @@ import { css } from "@/styled-system/css";
 import { ADDRESS_ZERO, InfoTooltip } from "@liquity2/uikit";
 import * as dn from "dnum";
 import * as v from "valibot";
-import { maxUint256, parseEventLogs } from "viem";
+import { isAddressEqual, maxUint256, parseEventLogs, zeroAddress } from "viem";
 import { readContract } from "wagmi/actions";
 import { createRequestSchema, verifyTransaction } from "./shared";
 import { WHITE_LABEL_CONFIG } from "@/src/white-label.config";
@@ -47,6 +47,13 @@ export function convert18ToDecimals(amount: bigint, decimals: number): bigint {
 }
 
 export type OpenBorrowPositionRequest = v.InferOutput<typeof RequestSchema>;
+
+function hasBorrowZapper(branch: ReturnType<typeof getBranch>) {
+  const zapper = branch.decimals < 18
+    ? branch.contracts.LeverageWrappedTokenZapper
+    : branch.contracts.LeverageLSTZapper;
+  return !isAddressEqual(zapper.address, zeroAddress);
+}
 
 export const openBorrowPosition: FlowDeclaration<OpenBorrowPositionRequest> = {
   title: "Review & Send Transaction",
@@ -242,13 +249,16 @@ export const openBorrowPosition: FlowDeclaration<OpenBorrowPositionRequest> = {
       ),
       async commit(ctx) {
         const branch = getBranch(ctx.request.branchId);
-        const { LeverageLSTZapper, LeverageWrappedTokenZapper, CollToken } = branch.contracts;
+        const { LeverageLSTZapper, LeverageWrappedTokenZapper, BorrowerOperations, CollToken } = branch.contracts;
+        const approveSpender = hasBorrowZapper(branch)
+          ? (branch.decimals < 18 ? LeverageWrappedTokenZapper.address : LeverageLSTZapper.address)
+          : BorrowerOperations.address;
 
         return ctx.writeContract({
           ...CollToken,
           functionName: "approve",
           args: [
-            branch.decimals < 18 ? LeverageWrappedTokenZapper.address : LeverageLSTZapper.address,
+            approveSpender,
             ctx.preferredApproveMethod === "approve-infinite"
               ? maxUint256 // infinite approval
               : (branch.decimals < 18 ? convert18ToDecimals(ctx.request.collAmount[0], branch.decimals) : ctx.request.collAmount[0]), // exact amount
@@ -274,28 +284,73 @@ export const openBorrowPosition: FlowDeclaration<OpenBorrowPositionRequest> = {
         });
 
         const branch = getBranch(ctx.request.branchId);
+        const collAmount = branch.decimals < 18
+          ? convert18ToDecimals(ctx.request.collAmount[0], branch.decimals)
+          : ctx.request.collAmount[0];
+
+        // Prefer zapper when available, fallback to BorrowerOperations when no zapper is deployed.
+        if (hasBorrowZapper(branch)) {
+          return ctx.writeContract({
+            ...(branch.decimals < 18 ? branch.contracts.LeverageWrappedTokenZapper : branch.contracts.LeverageLSTZapper),
+            functionName: "openTroveWithRawETH" as const,
+            args: [{
+              owner: ctx.request.owner,
+              ownerIndex: BigInt(ctx.request.ownerIndex),
+              collAmount,
+              boldAmount: ctx.request.boldAmount[0],
+              upperHint,
+              lowerHint,
+              annualInterestRate: ctx.request.interestRateDelegate
+                ? 0n
+                : ctx.request.annualInterestRate[0],
+              batchManager: ctx.request.interestRateDelegate
+                ? ctx.request.interestRateDelegate
+                : ADDRESS_ZERO,
+              maxUpfrontFee: ctx.request.maxUpfrontFee[0],
+              addManager: ADDRESS_ZERO,
+              removeManager: ADDRESS_ZERO,
+              receiver: ADDRESS_ZERO,
+            }],
+            // value: ETH_GAS_COMPENSATION[0],
+          });
+        }
+
+        if (ctx.request.interestRateDelegate) {
+          return ctx.writeContract({
+            ...branch.contracts.BorrowerOperations,
+            functionName: "openTroveAndJoinInterestBatchManager",
+            args: [{
+              owner: ctx.request.owner,
+              ownerIndex: BigInt(ctx.request.ownerIndex),
+              collAmount,
+              boldAmount: ctx.request.boldAmount[0],
+              upperHint,
+              lowerHint,
+              interestBatchManager: ctx.request.interestRateDelegate,
+              maxUpfrontFee: ctx.request.maxUpfrontFee[0],
+              addManager: ADDRESS_ZERO,
+              removeManager: ADDRESS_ZERO,
+              receiver: ADDRESS_ZERO,
+            }],
+          });
+        }
+
         return ctx.writeContract({
-          ...(branch.decimals < 18 ? branch.contracts.LeverageWrappedTokenZapper : branch.contracts.LeverageLSTZapper),
-          functionName: "openTroveWithRawETH" as const,
-          args: [{
-            owner: ctx.request.owner,
-            ownerIndex: BigInt(ctx.request.ownerIndex),
-            collAmount: branch.decimals < 18 ? convert18ToDecimals(ctx.request.collAmount[0], branch.decimals) : ctx.request.collAmount[0],
-            boldAmount: ctx.request.boldAmount[0],
+          ...branch.contracts.BorrowerOperations,
+          functionName: "openTrove",
+          args: [
+            ctx.request.owner,
+            BigInt(ctx.request.ownerIndex),
+            collAmount,
+            ctx.request.boldAmount[0],
             upperHint,
             lowerHint,
-            annualInterestRate: ctx.request.interestRateDelegate
-              ? 0n
-              : ctx.request.annualInterestRate[0],
-            batchManager: ctx.request.interestRateDelegate
-              ? ctx.request.interestRateDelegate
-              : ADDRESS_ZERO,
-            maxUpfrontFee: ctx.request.maxUpfrontFee[0],
-            addManager: ADDRESS_ZERO,
-            removeManager: ADDRESS_ZERO,
-            receiver: ADDRESS_ZERO,
-          }],
-          // value: ETH_GAS_COMPENSATION[0],
+            ctx.request.annualInterestRate[0],
+            ctx.request.maxUpfrontFee[0],
+            ADDRESS_ZERO,
+            ADDRESS_ZERO,
+            ADDRESS_ZERO,
+          ],
         });
       },
 
@@ -383,11 +438,16 @@ export const openBorrowPosition: FlowDeclaration<OpenBorrowPositionRequest> = {
     // }
 
     // Check if approval is needed
-    const zapperAddress = branch.decimals < 18 ? branch.contracts.LeverageWrappedTokenZapper.address : branch.contracts.LeverageLSTZapper.address;
+    const zapperAddress = branch.decimals < 18
+      ? branch.contracts.LeverageWrappedTokenZapper.address
+      : branch.contracts.LeverageLSTZapper.address;
+    const spenderAddress = hasBorrowZapper(branch)
+      ? zapperAddress
+      : branch.contracts.BorrowerOperations.address;
     const allowance = await readContract(ctx.wagmiConfig, {
       ...branch.contracts.CollToken,
       functionName: "allowance",
-      args: [ctx.account, zapperAddress],
+      args: [ctx.account, spenderAddress],
     });
 
     const steps: string[] = [];
