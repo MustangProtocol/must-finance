@@ -12,22 +12,13 @@ import {DECIMAL_PRECISION} from "src/Dependencies/Constants.sol";
 contract RedeemCollateral is Script {
     using Strings for *;
     using StringFormatting for *;
+    ICollateralRegistry internal constant COLLATERAL_REGISTRY =
+        ICollateralRegistry(0xF39bdCfB55374dDb0948a28af00b6474A566Ac22);
 
     function run() external {
         vm.startBroadcast();
-
-        string memory manifestJson;
-        try vm.readFile("deployment-manifest.json") returns (string memory content) {
-            manifestJson = content;
-        } catch {}
-
-        ICollateralRegistry collateralRegistry;
-        try vm.envAddress("COLLATERAL_REGISTRY") returns (address value) {
-            collateralRegistry = ICollateralRegistry(value);
-        } catch {
-            collateralRegistry = ICollateralRegistry(vm.parseJsonAddress(manifestJson, ".collateralRegistry"));
-        }
-        vm.label(address(collateralRegistry), "CollateralRegistry");
+        ICollateralRegistry collateralRegistry = COLLATERAL_REGISTRY;
+        vm.label(address(COLLATERAL_REGISTRY), "CollateralRegistry");
 
         IBoldToken boldToken = IBoldToken(collateralRegistry.boldToken());
         vm.label(address(boldToken), "BoldToken");
